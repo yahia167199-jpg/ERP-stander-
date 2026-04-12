@@ -5079,14 +5079,14 @@ export default function App() {
             if (existingDoc.id !== user.uid) {
               await deleteDoc(existingDoc.ref);
             }
-          } else {
-            // Create new profile
+          } else if (user.email === 'yahia167199@gmail.com') {
+            // Create new profile ONLY for primary admin
             await setDoc(userRef, {
               uid: user.uid,
               email: user.email,
               displayName: user.displayName || '',
-              role: 'user',
-              isActive: false,
+              role: 'admin',
+              isActive: true,
               allowedScreens: [],
               permissions: {}
             });
@@ -5107,7 +5107,7 @@ export default function App() {
     ensureUserProfile();
 
     // Only start data listeners if profile is ready or user is the primary admin
-    const isPrimaryAdmin = user.email === 'yahia1671999@gmail.com';
+    const isPrimaryAdmin = user.email === 'yahia167199@gmail.com';
     if (!isProfileReady && !isPrimaryAdmin) return;
 
     const unsubProducts = onSnapshot(query(collection(db, 'products'), orderBy('name')), (snap) => {
@@ -5156,7 +5156,6 @@ export default function App() {
       }
     }, (err) => handleFirestoreError(err, OperationType.GET, 'settings/system'));
 
-    // For users, if admin, listen to all. If not, listen only to self.
     const usersQuery = isPrimaryAdmin ? query(collection(db, 'users')) : query(collection(db, 'users'), where('email', '==', user.email));
 
     const unsubUsers = onSnapshot(usersQuery, (snap) => {
@@ -5182,17 +5181,7 @@ export default function App() {
   }, [user, isProfileReady]);
 
   useEffect(() => {
-    if (user && isUsersLoaded && users.length === 0) {
-      setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        email: user.email,
-        role: 'admin',
-        displayName: user.displayName || '',
-        isActive: true,
-        allowedScreens: [],
-        permissions: {}
-      }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`));
-    }
+    // Redundant effect removed, logic moved to ensureUserProfile
   }, [user, isUsersLoaded, users.length]);
 
   const handleLogin = async () => {
@@ -5300,7 +5289,7 @@ export default function App() {
     );
   }
 
-  if (users.length > 0 && !currentUserProfile) {
+  if (isUsersLoaded && !currentUserProfile) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4" dir={dir}>
         <Card className="p-8 max-w-md w-full text-center dark:bg-slate-800 dark:border-slate-700">
