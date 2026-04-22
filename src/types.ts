@@ -13,6 +13,7 @@ export interface Product {
   stockLeft: number;
   stockRight: number;
   unit: string;
+  pieceType?: 'single' | 'pair'; // Added field to distinguish between shoes and others
   warehouseId: string;
   barcode?: string;
   piecesPerCarton?: number;
@@ -89,6 +90,7 @@ export interface PurchaseItem {
 
 export interface Purchase {
   id?: string;
+  invoiceNumber?: string;
   supplierId: string;
   date: string;
   items: PurchaseItem[];
@@ -133,6 +135,7 @@ export interface Transaction {
 export interface Category {
   id?: string;
   name: string;
+  parentId?: string | null;
 }
 
 export interface UserPermissions {

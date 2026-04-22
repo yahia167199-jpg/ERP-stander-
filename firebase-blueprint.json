@@ -14,6 +14,7 @@
         "stockLeft": { "type": "number", "description": "Left shoe stock" },
         "stockRight": { "type": "number", "description": "Right shoe stock" },
         "unit": { "type": "string", "description": "Unit of measure (e.g., kg, pcs)" },
+        "pieceType": { "type": "string", "enum": ["single", "pair"] },
         "warehouseId": { "type": "string", "description": "ID of the warehouse where this product is stored" },
         "subCategory": { "type": "string" },
         "brand": { "type": "string" },
@@ -21,7 +22,17 @@
         "size": { "type": "string" },
         "imageUrl": { "type": "string" }
       },
-      "required": ["name", "sku", "price", "cost", "stock", "stockLeft", "stockRight", "warehouseId"]
+      "required": ["name", "sku", "price", "cost", "stock", "stockLeft", "stockRight", "warehouseId", "pieceType"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Product category",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "parentId": { "type": "string", "description": "ID of the parent category" }
+      },
+      "required": ["name"]
     },
     "Warehouse": {
       "title": "Warehouse",
@@ -174,6 +185,7 @@
   },
   "firestore": {
     "/products": { "schema": "Product", "description": "Inventory products" },
+    "/categories": { "schema": "Category", "description": "Product categories" },
     "/warehouses": { "schema": "Warehouse", "description": "Warehouses list" },
     "/suppliers": { "schema": "Supplier", "description": "Suppliers list" },
     "/customers": { "schema": "Customer", "description": "Customers list" },

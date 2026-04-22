@@ -53,7 +53,8 @@ import {
   ScanLine,
   Keyboard,
   Volume2,
-  Loader2
+  Loader2,
+  Share2
 } from 'lucide-react';
 import BarcodeScanner from './components/BarcodeScanner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -387,7 +388,7 @@ const Dashboard = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6 cursor-pointer hover:shadow-md transition-all" onClick={() => onNavigate('sales')}>
+        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-2 border-slate-100 dark:border-slate-700/50" onClick={() => onNavigate('sales')}>
           <div className="flex items-center justify-between">
             <div className={language === 'ar' ? 'text-right' : 'text-left'}>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('totalSales')}</p>
@@ -398,7 +399,7 @@ const Dashboard = ({
             </div>
           </div>
         </Card>
-        <Card className="p-6 cursor-pointer hover:shadow-md transition-all" onClick={() => onNavigate('purchases')}>
+        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-2 border-slate-100 dark:border-slate-700/50" onClick={() => onNavigate('purchases')}>
           <div className="flex items-center justify-between">
             <div className={language === 'ar' ? 'text-right' : 'text-left'}>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('totalPurchases')}</p>
@@ -409,7 +410,7 @@ const Dashboard = ({
             </div>
           </div>
         </Card>
-        <Card className="p-6 cursor-pointer hover:shadow-md transition-all" onClick={() => onNavigate('inventory')}>
+        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-2 border-slate-100 dark:border-slate-700/50" onClick={() => onNavigate('inventory')}>
           <div className="flex items-center justify-between">
             <div className={language === 'ar' ? 'text-right' : 'text-left'}>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('stockValue')}</p>
@@ -420,11 +421,13 @@ const Dashboard = ({
             </div>
           </div>
         </Card>
-        <Card className="p-6 cursor-pointer hover:shadow-md transition-all" onClick={() => onNavigate('accounting')}>
+        <Card className="p-6 cursor-pointer hover:shadow-lg transition-all border-2 border-slate-100 dark:border-slate-700/50" onClick={() => onNavigate('accounting')}>
           <div className="flex items-center justify-between">
             <div className={language === 'ar' ? 'text-right' : 'text-left'}>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('netProfit')}</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1 dark:text-white">{netProfit.toLocaleString()} {t('egp')}</h3>
+              <h3 className={cn("text-2xl font-bold mt-1", netProfit >= 0 ? "text-slate-900 dark:text-white" : "text-red-600 dark:text-red-400")}>
+                {netProfit.toLocaleString()} {t('egp')}
+              </h3>
             </div>
             <div className="p-3 bg-amber-50 rounded-xl text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
               <DollarSign className="w-6 h-6" />
@@ -1232,6 +1235,8 @@ const InventoryModule = ({ products, warehouses, categories, canDo, showToast, c
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedUnit, setSelectedUnit] = useState<string>('');
+  const [selectedCategoryForProduct, setSelectedCategoryForProduct] = useState('');
+  const [selectedPieceType, setSelectedPieceType] = useState<'single' | 'pair'>('single');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const UNITS = getUnits(t);
 
@@ -1337,8 +1342,12 @@ const InventoryModule = ({ products, warehouses, categories, canDo, showToast, c
   useEffect(() => {
     if (editingProduct) {
       setSelectedUnit(editingProduct.unit);
+      setSelectedCategoryForProduct(editingProduct.category);
+      setSelectedPieceType(editingProduct.pieceType || 'single');
     } else {
       setSelectedUnit('');
+      setSelectedCategoryForProduct('');
+      setSelectedPieceType('single');
     }
   }, [editingProduct]);
 
@@ -1383,6 +1392,9 @@ const InventoryModule = ({ products, warehouses, categories, canDo, showToast, c
       }
     }
 
+    const stockLeft = Number(formData.get('stockLeft') || formData.get('stock') || 0);
+    const stockRight = Number(formData.get('stockRight') || formData.get('stock') || 0);
+
     const data: any = {
       name: formData.get('name') as string,
       sku: formData.get('sku') as string,
@@ -1393,10 +1405,11 @@ const InventoryModule = ({ products, warehouses, categories, canDo, showToast, c
       size: formData.get('size') as string,
       price: Number(formData.get('price')),
       cost: Number(formData.get('cost')),
-      stockLeft: Number(formData.get('stockLeft')),
-      stockRight: Number(formData.get('stockRight')),
-      stock: Math.min(Number(formData.get('stockLeft')), Number(formData.get('stockRight'))),
+      stockLeft,
+      stockRight,
+      stock: Math.min(stockLeft, stockRight),
       unit: formData.get('unit') as string,
+      pieceType: selectedPieceType,
       warehouseId: formData.get('warehouseId') as string,
       barcode: formData.get('barcode') as string,
       imageUrl: imageUrl,
@@ -1504,23 +1517,34 @@ const InventoryModule = ({ products, warehouses, categories, canDo, showToast, c
                   <td className="px-6 py-4 text-sm text-slate-900 dark:text-white">{product.price.toLocaleString()} {t('egp')}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
-                      <span className={cn(
-                        'px-2.5 py-1 rounded-full text-[10px] font-medium w-fit bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
-                      )}>
-                        {t('pairs')}: {product.stock}
-                      </span>
-                      <span className={cn(
-                        'px-2.5 py-1 rounded-full text-[10px] font-medium w-fit',
-                        product.stockLeft < 5 ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-                      )}>
-                        {t('stockLeft')}: {product.stockLeft}
-                      </span>
-                      <span className={cn(
-                        'px-2.5 py-1 rounded-full text-[10px] font-medium w-fit',
-                        product.stockRight < 5 ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-                      )}>
-                        {t('stockRight')}: {product.stockRight}
-                      </span>
+                      {product.pieceType === 'pair' ? (
+                        <>
+                          <span className={cn(
+                            'px-2.5 py-1 rounded-full text-[10px] font-medium w-fit bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
+                          )}>
+                            {t('pairs')}: {product.stock}
+                          </span>
+                          <span className={cn(
+                            'px-2.5 py-1 rounded-full text-[10px] font-medium w-fit',
+                            product.stockLeft < 5 ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          )}>
+                            {t('stockLeft')}: {product.stockLeft}
+                          </span>
+                          <span className={cn(
+                            'px-2.5 py-1 rounded-full text-[10px] font-medium w-fit',
+                            product.stockRight < 5 ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          )}>
+                            {t('stockRight')}: {product.stockRight}
+                          </span>
+                        </>
+                      ) : (
+                        <span className={cn(
+                          'px-2.5 py-1 rounded-full text-[10px] font-medium w-fit',
+                          product.stock < 5 ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        )}>
+                          {t('stock')}: {product.stock}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -1578,14 +1602,12 @@ const InventoryModule = ({ products, warehouses, categories, canDo, showToast, c
               <select 
                 name="category" 
                 className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
-                defaultValue={editingProduct?.category}
+                value={selectedCategoryForProduct}
+                onChange={(e) => setSelectedCategoryForProduct(e.target.value)}
                 required
               >
                 <option value="">{t('selectCategory')}</option>
-                <option value={t('men')}>{t('men')}</option>
-                <option value={t('women')}>{t('women')}</option>
-                <option value={t('kids')}>{t('kids')}</option>
-                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {categories.filter(c => !c.parentId).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">
@@ -1596,10 +1618,37 @@ const InventoryModule = ({ products, warehouses, categories, canDo, showToast, c
                 defaultValue={editingProduct?.subCategory}
               >
                 <option value="">{t('selectCategory')}</option>
-                <option value={t('sports')}>{t('sports')}</option>
-                <option value={t('fashion')}>{t('fashion')}</option>
-                <option value={t('slipper')}>{t('slipper')}</option>
+                {categories.filter(c => {
+                  if (!c.parentId) return false;
+                  const parent = categories.find(pc => pc.id === c.parentId);
+                  return parent?.name === selectedCategoryForProduct;
+                }).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('pieceType')}</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="pieceType" 
+                  value="single" 
+                  checked={selectedPieceType === 'single'} 
+                  onChange={() => setSelectedPieceType('single')}
+                />
+                {t('singlePiece')}
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="pieceType" 
+                  value="pair" 
+                  checked={selectedPieceType === 'pair'} 
+                  onChange={() => setSelectedPieceType('pair')}
+                />
+                {t('pairPiece')}
+              </label>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1616,16 +1665,23 @@ const InventoryModule = ({ products, warehouses, categories, canDo, showToast, c
               <Input name="size" defaultValue={editingProduct?.size} />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('stockLeft')}</label>
-              <Input name="stockLeft" type="number" defaultValue={editingProduct?.stockLeft || 0} required />
+          {selectedPieceType === 'pair' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('stockLeft')}</label>
+                <Input name="stockLeft" type="number" defaultValue={editingProduct?.stockLeft || 0} required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('stockRight')}</label>
+                <Input name="stockRight" type="number" defaultValue={editingProduct?.stockRight || 0} required />
+              </div>
             </div>
+          ) : (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('stockRight')}</label>
-              <Input name="stockRight" type="number" defaultValue={editingProduct?.stockRight || 0} required />
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('stock')}</label>
+              <Input name="stock" type="number" defaultValue={editingProduct?.stock || 0} required />
             </div>
-          </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('sellingPrice')}</label>
@@ -3974,38 +4030,68 @@ const ReturnsModule = ({ returns, sales, purchases, products, customers, supplie
                       <span>{product?.name}</span>
                       <span>{price} {t('egp')}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-500">{t('stockLeft')} (Max: {invoiceItem?.quantityLeft || 0})</label>
-                        <Input 
-                          type="number" 
-                          className="h-8 text-xs"
-                          value={isNaN(item.quantityLeft) ? '' : item.quantityLeft}
-                          onChange={(e) => {
-                            const inputVal = e.target.value === '' ? 0 : Number(e.target.value);
-                            const val = isNaN(inputVal) ? 0 : Math.min(inputVal, invoiceItem?.quantityLeft || 0);
-                            const newItems = [...returnItems];
-                            newItems[idx].quantityLeft = val;
-                            setReturnItems(newItems);
-                          }}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-slate-500">{t('stockRight')} (Max: {invoiceItem?.quantityRight || 0})</label>
-                        <Input 
-                          type="number" 
-                          className="h-8 text-xs"
-                          value={isNaN(item.quantityRight) ? '' : item.quantityRight}
-                          onChange={(e) => {
-                            const inputVal = e.target.value === '' ? 0 : Number(e.target.value);
-                            const val = isNaN(inputVal) ? 0 : Math.min(inputVal, invoiceItem?.quantityRight || 0);
-                            const newItems = [...returnItems];
-                            newItems[idx].quantityRight = val;
-                            setReturnItems(newItems);
-                          }}
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 gap-4">
+                      {product?.pieceType === 'pair' ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-xs text-slate-500">{t('stockLeft')} (Max: {invoiceItem?.quantityLeft || 0})</label>
+                            <Input 
+                              type="number" 
+                              className="h-8 text-xs"
+                              value={isNaN(item.quantityLeft) ? '' : item.quantityLeft}
+                              onChange={(e) => {
+                                const inputVal = e.target.value === '' ? 0 : Number(e.target.value);
+                                const val = isNaN(inputVal) ? 0 : Math.min(inputVal, invoiceItem?.quantityLeft || 0);
+                                const newItems = [...returnItems];
+                                newItems[idx].quantityLeft = val;
+                                if (product?.pieceType === 'pair') {
+                                  newItems[idx].quantityRight = val;
+                                }
+                                setReturnItems(newItems);
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-xs text-slate-500">{t('stockRight')} (Max: {invoiceItem?.quantityRight || 0})</label>
+                            <Input 
+                              type="number" 
+                              className="h-8 text-xs"
+                              value={isNaN(item.quantityRight) ? '' : item.quantityRight}
+                              onChange={(e) => {
+                                const inputVal = e.target.value === '' ? 0 : Number(e.target.value);
+                                const val = isNaN(inputVal) ? 0 : Math.min(inputVal, invoiceItem?.quantityRight || 0);
+                                const newItems = [...returnItems];
+                                newItems[idx].quantityRight = val;
+                                if (product?.pieceType === 'pair') {
+                                  newItems[idx].quantityLeft = val;
+                                }
+                                setReturnItems(newItems);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <label className="text-xs text-slate-500">{t('quantity')} (Max: {invoiceItem?.quantityLeft || invoiceItem?.quantity || 0})</label>
+                          <Input 
+                            type="number" 
+                            className="h-8 text-xs"
+                            value={isNaN(item.quantityLeft) ? '' : item.quantityLeft}
+                            onChange={(e) => {
+                              const inputVal = e.target.value === '' ? 0 : Number(e.target.value);
+                              const val = isNaN(inputVal) ? 0 : Math.min(inputVal, invoiceItem?.quantityLeft || invoiceItem?.quantity || 0);
+                              const newItems = [...returnItems];
+                              newItems[idx].quantityLeft = val;
+                              newItems[idx].quantityRight = val;
+                              setReturnItems(newItems);
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
+                    {product?.pieceType === 'pair' && (
+                      <p className="text-[10px] text-amber-600 font-medium">{t('forcedReturnBoth')}</p>
+                    )}
                     <Input 
                       placeholder={t('reason')}
                       className="h-8 text-xs"
@@ -4457,6 +4543,8 @@ const CategoriesModule = ({ categories, canDo, showToast, confirm }: { categorie
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
+  const parentCategories = useMemo(() => categories.filter(c => !c.parentId), [categories]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const action = editingCategory ? 'canEdit' : 'canAdd';
@@ -4465,8 +4553,10 @@ const CategoriesModule = ({ categories, canDo, showToast, confirm }: { categorie
       return;
     }
     const formData = new FormData(e.currentTarget);
+    const parentId = formData.get('parentId') as string;
     const data = {
       name: formData.get('name') as string,
+      parentId: parentId || null
     };
 
     try {
@@ -4505,24 +4595,48 @@ const CategoriesModule = ({ categories, canDo, showToast, confirm }: { categorie
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {categories.map(c => (
-          <Card key={c.id} className="p-6 flex items-center justify-between dark:bg-slate-900 dark:border-slate-800">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center dark:bg-indigo-900/30">
-                <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+        {parentCategories.map(parent => (
+          <div key={parent.id} className="space-y-4">
+            <Card className="p-6 flex items-center justify-between bg-indigo-50/30 border-indigo-100 dark:bg-indigo-900/10 dark:border-indigo-900/30">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center dark:bg-indigo-900/30">
+                  <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <span className="font-bold text-slate-900 dark:text-white">{parent.name}</span>
               </div>
-              <span className="font-bold text-slate-900 dark:text-white">{c.name}</span>
+              <div className="flex gap-2">
+                {canDo('categories', 'canEdit') && (
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingCategory(parent); setIsModalOpen(true); }}>{t('edit')}</Button>
+                )}
+                {canDo('categories', 'canDelete') && (
+                  <Button variant="danger" size="sm" onClick={() => parent.id && handleDelete(parent.id)}>{t('delete')}</Button>
+                )}
+              </div>
+            </Card>
+            
+            <div className={`space-y-2 ${dir === 'rtl' ? 'pr-8' : 'pl-8'}`}>
+              {categories.filter(sub => sub.parentId === parent.id).map(sub => (
+                <Card key={sub.id} className="p-4 flex items-center justify-between dark:bg-slate-900 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <ChevronRight className={`w-3 h-3 text-slate-400 ${dir === 'rtl' ? 'rotate-180' : ''}`} />
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{sub.name}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {canDo('categories', 'canEdit') && (
+                      <Button variant="ghost" size="xs" onClick={() => { setEditingCategory(sub); setIsModalOpen(true); }}>{t('edit')}</Button>
+                    )}
+                    {canDo('categories', 'canDelete') && (
+                      <Button variant="danger" size="xs" onClick={() => sub.id && handleDelete(sub.id)}>{t('delete')}</Button>
+                    )}
+                  </div>
+                </Card>
+              ))}
             </div>
-            <div className="flex gap-2">
-              {canDo('categories', 'canEdit') && (
-                <Button variant="ghost" size="sm" onClick={() => { setEditingCategory(c); setIsModalOpen(true); }}>{t('edit')}</Button>
-              )}
-              {canDo('categories', 'canDelete') && (
-                <Button variant="danger" size="sm" onClick={() => c.id && handleDelete(c.id)}>{t('delete')}</Button>
-              )}
-            </div>
-          </Card>
+          </div>
         ))}
+        {/* Isolated categories (with parentId that doesn't exist or null parentId that is meant to be parent) are mostly covered.
+            Wait, let's also show orphan categories if any. 
+        */}
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingCategory ? t('editCategory') : t('addNewCategory')}>
@@ -4531,10 +4645,410 @@ const CategoriesModule = ({ categories, canDo, showToast, confirm }: { categorie
             <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('categoryName')}</label>
             <Input name="name" defaultValue={editingCategory?.name} required />
           </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('parentCategory')}</label>
+            <select 
+              name="parentId" 
+              className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white"
+              defaultValue={editingCategory?.parentId || ''}
+            >
+              <option value="">{t('mainCategory')}</option>
+              {parentCategories.filter(p => p.id !== editingCategory?.id).map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="pt-4">
             <Button type="submit" className="w-full">{t('save')}</Button>
           </div>
         </form>
+      </Modal>
+    </div>
+  );
+};
+
+const InvoicesModule = ({ 
+  sales, 
+  purchases, 
+  returns, 
+  customers, 
+  suppliers,
+  products
+}: { 
+  sales: Sale[], 
+  purchases: Purchase[], 
+  returns: Return[], 
+  customers: Customer[], 
+  suppliers: Supplier[],
+  products: Product[]
+}) => {
+  const { t, dir, language } = useTranslation();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'sale' | 'purchase'>('all');
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+
+  // Grouped Invoices
+  const groupedInvoices = useMemo(() => {
+    const combined: any[] = [];
+
+    // Sales
+    sales.forEach(s => {
+      const relatedReturns = returns.filter(r => r.saleId === s.id && r.type === 'sale');
+      const returnsTotal = relatedReturns.reduce((sum, r) => sum + r.totalRefund, 0);
+      const customer = customers.find(c => c.id === s.customerId);
+      
+      combined.push({
+        id: s.id,
+        invoiceNumber: s.invoiceNumber,
+        type: 'sale',
+        date: s.date,
+        partyName: customer?.name || t('unknownCustomer'),
+        originalAmount: s.total,
+        returnsAmount: returnsTotal,
+        netAmount: s.total - returnsTotal,
+        items: s.items,
+        returns: relatedReturns,
+        raw: s
+      });
+    });
+
+    // Purchases
+    purchases.forEach(p => {
+      const relatedReturns = returns.filter(r => r.purchaseId === p.id && r.type === 'purchase');
+      const returnsTotal = relatedReturns.reduce((sum, r) => sum + r.totalRefund, 0);
+      const supplier = suppliers.find(sup => sup.id === p.supplierId);
+
+      combined.push({
+        id: p.id,
+        invoiceNumber: p.invoiceNumber || p.id?.slice(0, 8),
+        type: 'purchase',
+        date: p.date,
+        partyName: supplier?.name || t('unknownSupplier'),
+        originalAmount: p.total,
+        returnsAmount: returnsTotal,
+        netAmount: p.total - returnsTotal,
+        items: p.items,
+        returns: relatedReturns,
+        raw: p
+      });
+    });
+
+    return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [sales, purchases, returns, customers, suppliers, t]);
+
+  const filteredInvoices = groupedInvoices.filter(inv => {
+    const matchesSearch = inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         inv.partyName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'all' || inv.type === filterType;
+    return matchesSearch && matchesType;
+  });
+
+  const handlePrint = (invoice: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert(t('popupBlocked'));
+      return;
+    }
+
+    const isSale = invoice.type === 'sale';
+    
+    // Construct HTML for printing
+    let html = `
+      <html dir="${dir}">
+        <head>
+          <title>${t('invoice')} - ${invoice.invoiceNumber}</title>
+          <style>
+            body { font-family: sans-serif; padding: 40px; color: #1e293b; }
+            .header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
+            .title { font-size: 24px; font-weight: bold; }
+            .info { margin-bottom: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+            th { background: #f8fafc; text-align: ${dir === 'rtl' ? 'right' : 'left'}; padding: 12px; border-bottom: 1px solid #e2e8f0; }
+            td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+            .total-section { margin-${dir === 'rtl' ? 'right' : 'left'}: auto; width: 300px; }
+            .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
+            .grand-total { font-size: 18px; font-weight: bold; border-top: 2px solid #f1f5f9; margin-top: 10px; padding-top: 10px; }
+            .returns-title { margin-top: 40px; color: #ef4444; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="title">${t('appName')}</div>
+              <div>${t('invoiceNumber')}: ${invoice.invoiceNumber}</div>
+            </div>
+            <div style="text-align: ${dir === 'rtl' ? 'left' : 'right'}">
+              <div class="title">${isSale ? t('salesInvoice') : t('purchaseInvoice')}</div>
+              <div>${format(new Date(invoice.date), 'yyyy-MM-dd HH:mm')}</div>
+            </div>
+          </div>
+
+          <div class="info">
+            <div>
+              <strong>${isSale ? t('customer') : t('supplier')}:</strong> ${invoice.partyName}
+            </div>
+          </div>
+
+          <h3>${t('items')}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>${t('product')}</th>
+                <th>${t('quantity')}</th>
+                <th>${t('price')}</th>
+                <th>${t('total')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${invoice.items.map((item: any) => {
+                const p = products.find(prod => prod.id === item.productId);
+                return `
+                  <tr>
+                    <td>${p?.name || t('unknownProduct')}</td>
+                    <td>${item.quantity} ${item.unitType === 'carton' ? t('carton') : t('piece')}</td>
+                    <td>${(item.price || item.cost).toLocaleString()}</td>
+                    <td>${((item.price || item.cost) * item.quantity).toLocaleString()}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+
+          ${invoice.returns.length > 0 ? `
+            <h3 class="returns-title">${t('relatedReturns')}</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>${t('date')}</th>
+                  <th>${t('items')}</th>
+                  <th>${t('refundAmount')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoice.returns.map((ret: any) => `
+                  <tr>
+                    <td>${format(new Date(ret.date), 'yyyy-MM-dd')}</td>
+                    <td>${ret.items.length} ${t('items')}</td>
+                    <td>${ret.totalRefund.toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : ''}
+
+          <div class="total-section">
+            <div class="total-row">
+              <span>${t('originalAmount')}</span>
+              <span>${invoice.originalAmount.toLocaleString()} ${t('egp')}</span>
+            </div>
+            ${invoice.returnsAmount > 0 ? `
+              <div class="total-row" style="color: #ef4444">
+                <span>${t('returnsAmount')}</span>
+                <span>-${invoice.returnsAmount.toLocaleString()} ${t('egp')}</span>
+              </div>
+            ` : ''}
+            <div class="total-row grand-total">
+              <span>${t('netAmount')}</span>
+              <span>${invoice.netAmount.toLocaleString()} ${t('egp')}</span>
+            </div>
+          </div>
+
+          <script>window.print();</script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
+  return (
+    <div className="space-y-6" dir={dir}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('invoices')}</h2>
+      </div>
+
+      <Card className="p-4 flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1">
+          <Search className={`absolute ${dir === 'rtl' ? 'left-3' : 'right-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400`} />
+          <Input 
+            placeholder={t('searchInvoice')} 
+            className={dir === 'rtl' ? 'pl-10 text-right' : 'pr-10'} 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <select 
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value as any)}
+          className="h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white min-w-[150px]"
+        >
+          <option value="all">{t('allInvoices')}</option>
+          <option value="sale">{t('sales')}</option>
+          <option value="purchase">{t('purchases')}</option>
+        </select>
+      </Card>
+
+      <Card className="dark:bg-slate-900 dark:border-slate-800 overflow-visible">
+        <div className="overflow-x-auto">
+          <table className={`w-full ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
+            <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+              <tr>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t('invoiceNumber')}</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t('type')}</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t('date')}</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t('name')}</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t('originalAmount')}</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t('returnsAmount')}</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t('netAmount')}</th>
+                <th className="px-6 py-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t('actions')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {filteredInvoices.map(inv => (
+                <tr key={inv.id} className="hover:bg-slate-50 transition-colors dark:hover:bg-slate-900/50">
+                  <td className="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">{inv.invoiceNumber}</td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className={cn(
+                      "px-2.5 py-1 rounded-full text-xs font-medium",
+                      inv.type === 'sale' ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                    )}>
+                      {inv.type === 'sale' ? t('sale') : t('purchase')}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
+                    {format(new Date(inv.date), 'yyyy-MM-dd')}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.partyName}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{inv.originalAmount.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm text-red-600 dark:text-red-400">{inv.returnsAmount > 0 ? `-${inv.returnsAmount.toLocaleString()}` : '0'}</td>
+                  <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">{inv.netAmount.toLocaleString()} {t('egp')}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => { setSelectedInvoice(inv); setIsInvoiceModalOpen(true); }}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handlePrint(inv)}>
+                        <Printer className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Modal isOpen={isInvoiceModalOpen} onClose={() => setIsInvoiceModalOpen(false)} title={t('invoiceDetails')} maxWidth="max-w-3xl">
+        {selectedInvoice && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-start border-b pb-4 dark:border-slate-800">
+              <div>
+                <p className="text-sm text-slate-500">{t('invoiceNumber')}</p>
+                <p className="text-lg font-bold">{selectedInvoice.invoiceNumber}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-slate-500">{t('date')}</p>
+                <p className="font-medium text-slate-900 dark:text-white">{format(new Date(selectedInvoice.date), 'yyyy-MM-dd HH:mm')}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 rounded-lg dark:bg-slate-900/50">
+                <p className="text-sm text-slate-500 mb-1">{selectedInvoice.type === 'sale' ? t('customer') : t('supplier')}</p>
+                <p className="font-bold text-slate-900 dark:text-white">{selectedInvoice.partyName}</p>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-lg dark:bg-slate-900/50">
+                <p className="text-sm text-slate-500 mb-1">{t('type')}</p>
+                <p className="font-bold text-slate-900 dark:text-white">{selectedInvoice.type === 'sale' ? t('sale') : t('purchase')}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-bold text-slate-900 dark:text-white">{t('items')}</h3>
+              <div className="border rounded-lg overflow-hidden dark:border-slate-800">
+                <table className={`w-full text-sm ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                  <thead className="bg-slate-50 dark:bg-slate-900">
+                    <tr>
+                      <th className="px-4 py-2">{t('product')}</th>
+                      <th className="px-4 py-2 text-center">{t('quantity')}</th>
+                      <th className="px-4 py-2 text-center">{t('price')}</th>
+                      <th className="px-4 py-2 text-center">{t('total')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y dark:divide-slate-800">
+                    {selectedInvoice.items.map((item: any, idx: number) => {
+                      const p = products.find(prod => prod.id === item.productId);
+                      return (
+                        <tr key={idx}>
+                          <td className="px-4 py-2 font-medium">{p?.name || t('unknownProduct')}</td>
+                          <td className="px-4 py-2 text-center">{item.quantity}</td>
+                          <td className="px-4 py-2 text-center">{(item.price || item.cost).toLocaleString()}</td>
+                          <td className="px-4 py-2 text-center">{((item.price || item.cost) * item.quantity).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {selectedInvoice.returns.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="font-bold text-red-600 dark:text-red-400">{t('relatedReturns')}</h3>
+                <div className="border border-red-100 rounded-lg overflow-hidden dark:border-red-900/30">
+                  <table className={`w-full text-sm ${dir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                    <thead className="bg-red-50 dark:bg-red-950/20">
+                      <tr>
+                        <th className="px-4 py-2 text-red-700 dark:text-red-300">{t('date')}</th>
+                        <th className="px-4 py-2 text-red-700 dark:text-red-300 text-center">{t('items')}</th>
+                        <th className="px-4 py-2 text-red-700 dark:text-red-300 text-center">{t('refundAmount')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-red-50 dark:divide-red-950/10">
+                      {selectedInvoice.returns.map((ret: any) => (
+                        <tr key={ret.id}>
+                          <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{format(new Date(ret.date), 'yyyy-MM-dd')}</td>
+                          <td className="px-4 py-2 text-slate-600 dark:text-slate-400 text-center">{ret.items.length}</td>
+                          <td className="px-4 py-2 font-bold text-red-600 dark:text-red-300 text-center">{ret.totalRefund.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className={`p-4 bg-indigo-50 rounded-xl dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 flex flex-col gap-2 ${dir === 'rtl' ? 'mr-auto' : 'ml-auto'} w-full md:w-64`}>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600 dark:text-slate-400">{t('originalAmount')}</span>
+                <span className="font-medium">{selectedInvoice.originalAmount.toLocaleString()} {t('egp')}</span>
+              </div>
+              {selectedInvoice.returnsAmount > 0 && (
+                <div className="flex justify-between text-sm text-red-600">
+                  <span>{t('returnsAmount')}</span>
+                  <span>-{selectedInvoice.returnsAmount.toLocaleString()} {t('egp')}</span>
+                </div>
+              )}
+              <div className="border-t border-indigo-200 dark:border-indigo-800 pt-2 flex justify-between font-bold text-lg text-indigo-700 dark:text-indigo-400">
+                <span>{t('netAmount')}</span>
+                <span>{selectedInvoice.netAmount.toLocaleString()} {t('egp')}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <Button className="flex-1" onClick={() => handlePrint(selectedInvoice)}>
+                <Printer className={`w-4 h-4 ${dir === 'rtl' ? 'ml-2' : 'mr-2'}`} />
+                {t('printInvoice')}
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => setIsInvoiceModalOpen(false)}>
+                {t('close')}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
@@ -4562,6 +5076,7 @@ const SettingsModule = ({ settings, users, currentUserProfile, showToast, confir
     { id: 'accounting', label: t('accounting') },
     { id: 'customers', label: t('customers') },
     { id: 'suppliers', label: t('suppliers') },
+    { id: 'invoices', label: t('invoices') },
     { id: 'categories', label: t('categories') },
     { id: 'settings', label: t('systemSettings') },
   ];
@@ -5233,6 +5748,7 @@ export default function App() {
       { id: 'stocktaking', label: t('stocktaking'), icon: CheckCircle2 },
       { id: 'purchases', label: t('purchases'), icon: ShoppingCart },
       { id: 'sales', label: t('sales'), icon: TrendingUp },
+      { id: 'invoices', label: t('invoices'), icon: FileText },
       { id: 'returns', label: t('returns'), icon: LogOut },
       { id: 'accounting', label: t('accounting'), icon: DollarSign },
       { id: 'customers', label: t('customers'), icon: UserCircle },
@@ -5387,11 +5903,35 @@ export default function App() {
           dir === 'rtl' ? "right-0 border-l" : "left-0 border-r"
         )}
       >
-        <div className="h-16 flex items-center px-6 border-b border-slate-100 dark:border-slate-700 shrink-0">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
-            <TrendingUp className="w-5 h-5 text-white" />
+        <div className="h-32 flex flex-col items-center justify-center px-6 border-b border-slate-100 dark:border-slate-700 shrink-0 bg-white dark:bg-slate-800">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="relative w-16 h-16 flex items-center justify-center overflow-hidden rounded-xl">
+              {/* Replace the src with your actual logo URL */}
+              <img 
+                src="https://drive.google.com/uc?export=view&id=1FtoNq-bqoENlt_NdbN7Vdu-nBBWQgw54" 
+                alt="MMK Logo" 
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            {(isSidebarOpen || isMobile) && (
+              <div className="flex flex-col">
+                <span className="text-3xl font-black text-slate-900 dark:text-white leading-none tracking-tighter">
+                  MMK
+                </span>
+                <span className="text-[7px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.1em] mt-1 whitespace-nowrap">
+                  APP & WEB DEVELOPMENT
+                </span>
+              </div>
+            )}
           </div>
-          {(isSidebarOpen || isMobile) && <span className="mx-3 font-bold text-slate-900 dark:text-white truncate">{t('erpSystem')}</span>}
+          {(isSidebarOpen || isMobile) && (
+            <div className="w-full border-t border-slate-100 dark:border-slate-700 mt-1 pt-1">
+              <p className="text-[6px] text-slate-400 dark:text-slate-500 font-medium text-center uppercase tracking-widest">
+                ENTERPRISE APP, WEB & ERP DEVELOPMENT
+              </p>
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
@@ -5481,6 +6021,7 @@ export default function App() {
               {activeTab === 'purchases' && <PurchasesModule purchases={purchases} suppliers={suppliers} products={products} warehouses={warehouses} canDo={canDo} showToast={showToast} confirm={confirm} />}
               {activeTab === 'sales' && <SalesModule sales={sales} customers={customers} products={products} settings={settings} canDo={canDo} showToast={showToast} confirm={confirm} />}
               {activeTab === 'returns' && <ReturnsModule returns={returns} sales={sales} purchases={purchases} products={products} customers={customers} suppliers={suppliers} canDo={canDo} showToast={showToast} confirm={confirm} />}
+              {activeTab === 'invoices' && <InvoicesModule sales={sales} purchases={purchases} returns={returns} customers={customers} suppliers={suppliers} products={products} />}
               {activeTab === 'accounting' && <AccountingModule transactions={transactions} sales={sales} purchases={purchases} canDo={canDo} showToast={showToast} confirm={confirm} />}
               {activeTab === 'customers' && <CustomersModule customers={customers} sales={sales} returns={returns} canDo={canDo} showToast={showToast} confirm={confirm} />}
               {activeTab === 'suppliers' && <SuppliersModule suppliers={suppliers} purchases={purchases} returns={returns} canDo={canDo} showToast={showToast} confirm={confirm} />}

@@ -67,6 +67,7 @@ service cloud.firestore {
              data.stockRight is number &&
              data.unit is string &&
              data.warehouseId is string &&
+             (!('pieceType' in data) || data.pieceType in ['single', 'pair']) &&
              (!('piecesPerCarton' in data) || (data.piecesPerCarton is number && data.piecesPerCarton >= 0)) &&
              (!('cartonPrice' in data) || (data.cartonPrice is number && data.cartonPrice >= 0)) &&
              (!('cartonCost' in data) || (data.cartonCost is number && data.cartonCost >= 0)) &&
@@ -180,12 +181,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (
-        isAdmin() || 
-        request.auth.uid == userId || 
-        request.auth.token.email == userId ||
-        (resource != null && resource.data.email == request.auth.token.email)
-      );
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (isAdmin() || request.auth.uid == userId || request.auth.token.email == userId) && isValidUser(request.resource.data);
       allow update: if isAuthenticated() && (
         isAdmin() || request.auth.uid == userId || request.auth.token.email == userId
@@ -246,10 +242,16 @@ service cloud.firestore {
       allow delete: if hasPermission('accounting', 'canDelete') || hasPermission('cashier', 'canDelete');
     }
 
+    function isValidCategory(data) {
+      return hasRequiredFields(['name']) &&
+             data.name is string && data.name.size() > 0 &&
+             (!('parentId' in data) || data.parentId is string);
+    }
+
     match /categories/{categoryId} {
       allow read: if isAuthenticated();
-      allow create: if hasPermission('categories', 'canAdd') && hasRequiredFields(['name']);
-      allow update: if hasPermission('categories', 'canEdit') && hasRequiredFields(['name']);
+      allow create: if hasPermission('categories', 'canAdd') && isValidCategory(request.resource.data);
+      allow update: if hasPermission('categories', 'canEdit') && isValidCategory(request.resource.data);
       allow delete: if hasPermission('categories', 'canDelete');
     }
 
