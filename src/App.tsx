@@ -5908,7 +5908,7 @@ export default function App() {
             <div className="relative w-16 h-16 flex items-center justify-center overflow-hidden rounded-xl">
               {/* Replace the src with your actual logo URL */}
               <img 
-                src="https://drive.google.com/uc?export=view&id=1FtoNq-bqoENlt_NdbN7Vdu-nBBWQgw54" 
+                src="https://lh3.googleusercontent.com/a/ACg8ocII1o9U9Bvqs-u5leQhOLnd-7uEGVFAstPbIL_dSaVgG6rB50qd=s360-c-no" 
                 alt="MMK Logo" 
                 className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
