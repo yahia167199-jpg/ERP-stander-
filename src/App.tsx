@@ -2912,14 +2912,16 @@ const AccountingModule = ({ transactions, sales, purchases, canDo, showToast, co
       return;
     }
     const formData = new FormData(e.currentTarget);
-    const data = {
+    const data: any = {
       date: new Date().toISOString(),
       description: formData.get('description') as string,
       type: formData.get('type') as 'income' | 'expense',
       amount: Number(formData.get('amount')),
       category: formData.get('category') as string,
-      attachmentUrl: attachment || undefined
     };
+    if (attachment) {
+      data.attachmentUrl = attachment;
+    }
 
     try {
       await addDoc(collection(db, 'transactions'), data);
@@ -5908,7 +5910,7 @@ export default function App() {
             <div className="relative w-16 h-16 flex items-center justify-center overflow-hidden rounded-xl">
               {/* Replace the src with your actual logo URL */}
               <img 
-                src="https://lh3.googleusercontent.com/a/ACg8ocII1o9U9Bvqs-u5leQhOLnd-7uEGVFAstPbIL_dSaVgG6rB50qd=s360-c-no" 
+                src="https://drive.google.com/uc?export=view&id=1FtoNq-bqoENlt_NdbN7Vdu-nBBWQgw54" 
                 alt="MMK Logo" 
                 className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
